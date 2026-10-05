@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ubiquiti Device Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f4f5f8; --bg2:#ffffff; --line:rgba(15,23,42,.10); --text:#0f172a; --muted:#64748b;
+  --accent:#0b5fd9; --accent-soft:rgba(11,95,217,.10); --gold:#9a7b3c; --danger:#d1344a;
+  --row:rgba(15,23,42,.03); --shadow:0 30px 60px -30px rgba(15,23,42,.25);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#070b14; --bg2:#0d1424; --line:rgba(255,255,255,.08); --text:#e8ecf5; --muted:#8a94aa;
+    --accent:#4c9dff; --accent-soft:rgba(76,157,255,.12); --gold:#d6b872; --danger:#ff6b81;
+    --row:rgba(255,255,255,.035); --shadow:0 40px 80px -30px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#070b14; --bg2:#0d1424; --line:rgba(255,255,255,.08); --text:#e8ecf5; --muted:#8a94aa;
+  --accent:#4c9dff; --accent-soft:rgba(76,157,255,.12); --gold:#d6b872; --danger:#ff6b81;
+  --row:rgba(255,255,255,.035); --shadow:0 40px 80px -30px rgba(0,0,0,.7);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--text);font-family:'Manrope',system-ui,sans-serif;min-height:100vh;
+  background-image:radial-gradient(900px 400px at 85% -10%,var(--accent-soft),transparent 60%),radial-gradient(700px 300px at 0% 0%,rgba(214,184,114,.07),transparent 60%);
+  background-attachment:fixed}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.muted{color:var(--muted)}
+.field{width:100%;background:var(--row);border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+.field:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field::placeholder{color:var(--muted);opacity:.7}
+select.field option{background:var(--bg2);color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:.5rem;border-radius:12px;padding:.65rem 1.1rem;font-weight:700;font-size:.9rem;cursor:pointer;transition:transform .12s,background .15s,border-color .15s}
+.btn:focus-visible,.icon-btn:focus-visible,.field:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn-primary{background:var(--accent);color:#fff;border:1px solid transparent}
+.btn-primary:hover{transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn-ghost:hover{background:var(--row)}
+.icon-btn{width:36px;height:36px;display:inline-grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.icon-btn:hover{color:var(--text);background:var(--row)}
+.icon-btn.del:hover{color:var(--danger);border-color:var(--danger)}
+.row{display:grid;grid-template-columns:44px 1.2fr 1.4fr 1fr auto;gap:1rem;align-items:center;padding:.9rem 1.25rem;border-top:1px solid var(--line);transition:background .15s}
+.row:hover{background:var(--row)}
+.ip-link{color:var(--accent);text-decoration:none;font-weight:500;border-bottom:1px dashed transparent}
+.ip-link:hover{border-bottom-color:var(--accent)}
+.dot{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:800}
+.tag{font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:999px;border:1px solid var(--line);color:var(--gold)}
+.rule{height:1px;background:linear-gradient(90deg,var(--gold),transparent 40%);opacity:.5}
+.overlay{position:fixed;inset:0;background:rgba(3,6,14,.6);backdrop-filter:blur(6px);display:grid;place-items:center;padding:1rem;z-index:50}
+.pop-enter-active,.pop-leave-active{transition:opacity .18s}
+.pop-enter-from,.pop-leave-to{opacity:0}
+.pop-enter-active .panel{animation:rise .22s ease-out}
+@keyframes rise{from{transform:translateY(12px) scale(.98)}to{transform:none}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--bg);padding:.6rem 1.1rem;border-radius:999px;font-weight:600;font-size:.88rem;z-index:60}
+@media (max-width:760px){
+  .row{grid-template-columns:44px 1fr auto;grid-template-areas:"a b e" "a c e" "a d e"}
+  .row>:nth-child(1){grid-area:a}.row>:nth-child(2){grid-area:b}.row>:nth-child(3){grid-area:c}.row>:nth-child(4){grid-area:d}.row>:nth-child(5){grid-area:e}
+  .head{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app" class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+  <header class="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Perangkat Ubiquiti</h1>
+      <p class="muted mt-1">{{ devices.length }} perangkat tersimpan di browser ini</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="icon-btn" @click="toggleTheme" :title="'Ganti tema'" aria-label="Ganti tema">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="btn btn-ghost" @click="exportData">Ekspor</button>
+      <button class="btn btn-ghost" @click="$refs.imp.click()">Impor</button>
+      <input ref="imp" type="file" accept="application/json" class="hidden" @change="importData">
+      <button class="btn btn-primary" @click="openForm()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Tambah perangkat
+      </button>
+    </div>
+  </header>
+  <div class="rule mb-6"></div>
+
+  <div class="panel overflow-hidden">
+    <div class="p-4 sm:p-5 flex flex-wrap gap-3 items-center">
+      <div class="relative flex-1 min-w-[220px]">
+        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 muted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input ref="search" v-model="q" class="field" style="padding-left:2.7rem" placeholder="Cari nama, IP, atau catatan  (tekan / )" aria-label="Cari perangkat">
+      </div>
+      <span class="muted text-sm" v-if="q">{{ filtered.length }} hasil</span>
+    </div>
+
+    <div class="head row muted text-xs font-semibold" style="border-top:1px solid var(--line);padding-top:.6rem;padding-bottom:.6rem">
+      <span></span><span>Nama</span><span>Alamat</span><span>Catatan</span><span style="width:120px"></span>
+    </div>
+
+    <div v-for="d in filtered" :key="d.id" class="row">
+      <div class="dot">{{ d.name.trim().charAt(0).toUpperCase() }}</div>
+      <div class="min-w-0">
+        <div class="font-bold truncate">{{ d.name }}</div>
+      </div>
+      <div class="min-w-0 flex items-center gap-2">
+        <a class="ip-link mono truncate" :href="url(d)" target="_blank" rel="noopener noreferrer" :title="'Buka ' + url(d) + ' di tab baru'">{{ d.ip }}<span v-if="d.port" class="muted">:{{ d.port }}</span></a>
+        <span class="tag">{{ d.proto }}</span>
+      </div>
+      <div class="muted text-sm truncate">{{ d.note || '–' }}</div>
+      <div class="flex gap-1.5 justify-end">
+        <a class="icon-btn" :href="url(d)" target="_blank" rel="noopener noreferrer" title="Buka di tab baru" aria-label="Buka di tab baru">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+        </a>
+        <button class="icon-btn" @click="openForm(d)" title="Ubah" aria-label="Ubah">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button class="icon-btn del" @click="askDelete(d)" title="Hapus" aria-label="Hapus">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="!filtered.length" class="py-16 px-6 text-center" style="border-top:1px solid var(--line)">
+      <p class="font-bold text-lg">{{ devices.length ? 'Tidak ada perangkat yang cocok' : 'Belum ada perangkat' }}</p>
+      <p class="muted mt-1 mb-5">{{ devices.length ? 'Coba kata kunci lain.' : 'Tambahkan perangkat pertama, misalnya AP atau PTP link Anda.' }}</p>
+      <button v-if="!devices.length" class="btn btn-primary" @click="openForm()">Tambah perangkat</button>
+    </div>
+  </div>
+
+  <p class="muted text-xs mt-5 text-center">Data tersimpan hanya di browser ini (localStorage). Gunakan Ekspor untuk cadangan.</p>
+
+  <!-- Form -->
+  <transition name="pop">
+    <div v-if="showForm" class="overlay" @mousedown.self="showForm=false" @keydown.esc="showForm=false">
+      <div class="panel w-full max-w-md p-6" role="dialog" aria-modal="true">
+        <h2 class="text-xl font-extrabold mb-5">{{ form.id ? 'Ubah perangkat' : 'Tambah perangkat' }}</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-semibold block mb-1.5">Nama perangkat</label>
+            <input ref="nameInput" v-model="form.name" class="field" placeholder="Contoh: AP_PTP_SD_PDR" @keydown.enter="save">
+          </div>
+          <div class="grid grid-cols-5 gap-3">
+            <div class="col-span-3">
+              <label class="text-sm font-semibold block mb-1.5">Alamat IP</label>
+              <input v-model="form.ip" class="field mono" placeholder="192.168.1.20" @keydown.enter="save">
+            </div>
+            <div>
+              <label class="text-sm font-semibold block mb-1.5">Protokol</label>
+              <select v-model="form.proto" class="field" style="padding-left:.6rem;padding-right:.3rem"><option>https</option><option>http</option></select>
+            </div>
+            <div>
+              <label class="text-sm font-semibold block mb-1.5">Port</label>
+              <input v-model="form.port" class="field mono" placeholder="443" inputmode="numeric" @keydown.enter="save">
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold block mb-1.5">Catatan <span class="muted font-normal">(opsional)</span></label>
+            <input v-model="form.note" class="field" placeholder="Lokasi atau fungsi perangkat" @keydown.enter="save">
+          </div>
+          <p v-if="err" class="text-sm font-semibold" style="color:var(--danger)">{{ err }}</p>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="btn btn-ghost" @click="showForm=false">Batal</button>
+          <button class="btn btn-primary" @click="save">Simpan perangkat</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- Konfirmasi hapus -->
+  <transition name="pop">
+    <div v-if="toDelete" class="overlay" @mousedown.self="toDelete=null">
+      <div class="panel w-full max-w-sm p-6">
+        <h2 class="text-lg font-extrabold">Hapus perangkat?</h2>
+        <p class="muted mt-2"><b style="color:var(--text)">{{ toDelete.name }}</b> ({{ toDelete.ip }}) akan dihapus dari daftar.</p>
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="btn btn-ghost" @click="toDelete=null">Batal</button>
+          <button class="btn" style="background:var(--danger);color:#fff" @click="confirmDelete">Hapus perangkat</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <div v-if="toast" class="toast">{{ toast }}</div>
+</div>
+
+<script>
+const { createApp, ref, computed, nextTick, onMounted } = Vue;
+const KEY = 'ubnt-devices-v1';
+
+createApp({
+  setup() {
+    const devices = ref([]);
+    const q = ref('');
+    const showForm = ref(false);
+    const form = ref({});
+    const err = ref('');
+    const toDelete = ref(null);
+    const toast = ref('');
+    const nameInput = ref(null);
+    const search = ref(null);
+
+    const load = () => { try { devices.value = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { devices.value = []; } };
+    const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(devices.value)); } catch (e) { flash('Gagal menyimpan ke browser'); } };
+    const flash = (m) => { toast.value = m; setTimeout(() => toast.value = '', 2200); };
+
+    const filtered = computed(() => {
+      const s = q.value.trim().toLowerCase();
+      const list = [...devices.value].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      return s ? list.filter(d => [d.name, d.ip, d.note].join(' ').toLowerCase().includes(s)) : list;
+    });
+
+    const url = (d) => `${d.proto}://${d.ip}${d.port ? ':' + d.port : ''}`;
+
+    const openForm = (d) => {
+      err.value = '';
+      form.value = d ? { ...d } : { id: null, name: '', ip: '', proto: 'https', port: '', note: '' };
+      showForm.value = true;
+      nextTick(() => nameInput.value && nameInput.value.focus());
+    };
+
+    const validHost = (v) => /^(\d{1,3}\.){3}\d{1,3}$/.test(v)
+      ? v.split('.').every(n => +n <= 255)
+      : /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(v);
+
+    const save = () => {
+      const f = form.value;
+      f.name = (f.name || '').trim(); f.ip = (f.ip || '').trim(); f.port = String(f.port || '').trim();
+      if (!f.name) return err.value = 'Nama perangkat wajib diisi.';
+      if (!f.ip || !validHost(f.ip)) return err.value = 'Alamat IP tidak valid. Contoh: 192.168.1.20';
+      if (f.port && !(/^\d+$/.test(f.port) && +f.port > 0 && +f.port < 65536)) return err.value = 'Port harus angka 1–65535.';
+      if (f.id) {
+        const i = devices.value.findIndex(x => x.id === f.id);
+        if (i > -1) devices.value[i] = { ...f };
+        flash('Perangkat diperbarui');
+      } else {
+        devices.value.push({ ...f, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) });
+        flash('Perangkat ditambahkan');
+      }
+      persist(); showForm.value = false;
+    };
+
+    const askDelete = (d) => toDelete.value = d;
+    const confirmDelete = () => {
+      devices.value = devices.value.filter(x => x.id !== toDelete.value.id);
+      toDelete.value = null; persist(); flash('Perangkat dihapus');
+    };
+
+    const exportData = () => {
+      const blob = new Blob([JSON.stringify(devices.value, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'perangkat-ubiquiti.json'; a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    const importData = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const data = JSON.parse(r.result);
+          if (!Array.isArray(data)) throw 0;
+          const clean = data.filter(x => x && x.name && x.ip).map(x => ({
+            id: x.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name: String(x.name), ip: String(x.ip), proto: x.proto === 'http' ? 'http' : 'https',
+            port: x.port ? String(x.port) : '', note: x.note ? String(x.note) : ''
+          }));
+          const ids = new Set(devices.value.map(d => d.id));
+          devices.value.push(...clean.filter(x => !ids.has(x.id)));
+          persist(); flash(clean.length + ' perangkat diimpor');
+        } catch (_) { flash('File tidak valid'); }
+        e.target.value = '';
+      };
+      r.readAsText(file);
+    };
+
+    const toggleTheme = () => {
+      const root = document.documentElement;
+      const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      root.dataset.theme = dark ? 'light' : 'dark';
+      try { localStorage.setItem('ubnt-theme', root.dataset.theme); } catch (_) {}
+    };
+
+    onMounted(() => {
+      load();
+      try { const t = localStorage.getItem('ubnt-theme'); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { showForm.value = false; toDelete.value = null; }
+        if (e.key === '/' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) { e.preventDefault(); search.value && search.value.focus(); }
+      });
+    });
+
+    return { devices, q, filtered, url, showForm, form, err, openForm, save, toDelete, askDelete, confirmDelete, toast, nameInput, search, exportData, importData, toggleTheme };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
